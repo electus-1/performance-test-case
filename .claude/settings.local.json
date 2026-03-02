@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php artisan:*)",
+      "Bash(php:*)",
+      "Bash(curl:*)",
+      "Bash(powershell:*)",
+      "Bash(/c/php8/php.exe:*)",
+      "Bash(netsh int:*)",
+      "Bash(netstat:*)"
+    ]
+  }
+}
