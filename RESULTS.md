@@ -92,23 +92,45 @@ Same trick as Approach 1 — single integer subtraction per row, no DateTime obj
 
 ### Results
 
+Two runs were recorded to capture the cold vs warm PostgreSQL buffer cache effect.
+
+#### Run 1 — Cold Cache (data read from disk)
+
 | Metric | Value |
 |--------|-------|
-| Total time | — |
-| Steps 4–5 time | — |
-| Step 6 time | — |
-| Peak memory | — |
-| Memory delta | — |
-| Rows processed | — |
-| Ortalama Yaş | — |
+| Total time | 55.2465 s |
+| Steps 4–5 time | 55.0313 s |
+| Step 6 time | 0.2152 s (WHERE id IN, PK index) |
+| Peak memory | 22.00 MB |
+| Memory delta | 0.10 MB |
+| Rows processed | 1,000,000 |
+| Ortalama Yaş | 47.66 |
 
-> Results to be filled after run.
+#### Run 2 — Warm Cache (data served from PostgreSQL shared_buffers)
+
+| Metric | Value |
+|--------|-------|
+| Total time | **2.2987 s** |
+| Steps 4–5 time | 2.0864 s |
+| Step 6 time | 0.2123 s (WHERE id IN, PK index) |
+| Peak memory | 20.00 MB |
+| Memory delta | 0.10 MB |
+| Rows processed | 1,000,000 |
+| Ortalama Yaş | 47.66 |
+
+### Cold vs Warm Cache Explained
+On the first run PostgreSQL had no data in `shared_buffers` and was forced to read
+all 1M rows from disk — physical I/O over a remote connection produced the 55s result.
+After run 1, those pages were cached in PostgreSQL's memory. Run 2 served everything
+from RAM, dropping total time to 2.3s. This is expected behaviour for any database
+system and is why production databases get faster as hot data stays in the buffer pool.
 
 ### Analysis
 Minimises network transfer by fetching only the column needed for age calculation.
 Step 6 costs one extra DB round-trip (~200ms on remote host) but total wall-clock
 time is lower when the database is remote because the reduced payload saves more
 time than the extra round-trip costs. **Optimal approach for remote databases.**
+Warm-cache steady-state performance: **2.3s** for 1M rows at 20 MB peak memory.
 
 ---
 
@@ -120,4 +142,6 @@ time than the extra round-trip costs. **Optimal approach for remote databases.**
 | Network payload | ~35 bytes/row | ~10 bytes/row |
 | Step 6 DB query | None (array lookup) | Yes (WHERE id IN) |
 | Peak memory | 76 MB | 20 MB |
+| Cold cache time | 19.1s | 55.2s |
+| Warm cache time | — | **2.3s** |
 | Best for | Local / low-latency DB | Remote / high-latency DB |
